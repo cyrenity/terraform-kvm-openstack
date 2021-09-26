@@ -1,0 +1,24 @@
+---
+  - name: Playing with Ansible and Git
+    hosts: localhost
+    connection: local 
+    tasks:
+
+
+    - name: Downlad terraform binary
+      get_url:
+        url: https://releases.hashicorp.com/terraform/1.0.7/terraform_1.0.7_linux_386.zip
+        dest: /tmp/terraform_1.0.7_linux_386.zip
+        mode: 0755
+      register: terraform_zip_file
+
+    - name: Install terraform binary
+      become: yes
+      unarchive:
+        src: "{{ item }}"
+        dest: /usr/local/bin/
+        copy: no
+      with_items:
+      - "{{ terraform_zip_file.dest }}"
+
+    - debug: var=terraform_zip_file
