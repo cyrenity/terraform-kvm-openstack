@@ -21,18 +21,21 @@ resource "libvirt_pool" "ubuntu" {
 }
 
 
-resource "libvirt_network" "os-mgmt" {
+resource "libvirt_network" "os-internal" {
   name      = "os-mgmt"
-  domain    = "os-mgmt.local"
-  mode      = "nat"
-  addresses = ["10.10.0.0/24"]
+  mode      = "bridge"
+  bridge    = "sw0"
+  xml {
+    xslt = "${data.template_file.network_xml_override.rendered}"
+  }
 }
 
-resource "libvirt_network" "os-lbaas" {
-  name      = "os-lbaas"
-  domain    = "os-lbaas.local"
-  mode      = "nat"
-  addresses = ["172.16.0.0/24"]
+data "template_file" "network_xml_override" {
+  template = "${file("${path.module}/templates/ovs-network.xsl")}"
+
+  vars = {
+      bridge_name = "sw0"
+  }
 }
 
 resource "libvirt_network" "os-external" {
@@ -48,7 +51,7 @@ resource "libvirt_volume" "cinder-qcow2" {
   name   = "cinder.qcow2"
   pool   = libvirt_pool.ubuntu.name
   format = "qcow2"
-  size   = 53687091200
+  size   = 53600000000
 }
 
 
@@ -74,6 +77,8 @@ resource "libvirt_cloudinit_disk" "commoninit" {
      interfaces = var.hosts[count.index].interfaces
      ips   = var.hosts[count.index].ips
      macs = var.hosts[count.index].macs
+     vlans = var.hosts[count.index].vlans
+     vlan_ips = var.hosts[count.index].vlan_ips
   })
 }
 
@@ -86,18 +91,13 @@ resource "libvirt_domain" "domain-distro" {
   cloudinit = element(libvirt_cloudinit_disk.commoninit.*.id, count.index)
   
   network_interface {
-      network_name = "os-mgmt"
+      network_id   = libvirt_network.os-internal.id
       mac          = var.hosts[count.index].macs[0]
   }
 
   network_interface {
-      network_name = "os-lbaas"
+      network_id   = libvirt_network.os-external.id
       mac          = var.hosts[count.index].macs[1]
-  }
-
-  network_interface {
-      network_name = "os-external"
-      mac          = var.hosts[count.index].macs[2]
   }
   console {
       type        = "pty"
@@ -116,8 +116,27 @@ resource "libvirt_domain" "domain-distro" {
   dynamic "disk" {
     for_each = var.hosts[count.index].hostname == "compute01" ? toset([1]) : toset([])
     content {
-      volume_id = element(libvirt_volume.cinder-qcow2.*.id, count.index)
+    volume_id = element(libvirt_volume.cinder-qcow2.*.id, count.index)
     }
   }
 
+
+}
+
+
+resource "null_resource" "network_switch_config" {
+  count  = "${length(var.hosts)}"
+  provisioner "local-exec" {
+    command = "echo \"# $HOSTNAME \n$LOOKUP_CMD \n$OFPORT_CMD\" >> /tmp/switch_port_configurations.txt"
+      environment = {
+        LOOKUP_CMD = "IFACE=`ovs-vsctl --columns=name,external-ids -f csv list Interface | grep ${libvirt_domain.domain-distro[count.index ].id} | cut -d\",\" -f1`"
+        OFPORT_CMD = "ovs-vsctl -- set Interface $IFACE ofport_request=${var.hosts[count.index].switch_port}"
+        HOSTNAME = "${var.hosts[count.index].hostname}"
+    }
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "echo '' > /tmp/switch_port_configurations.txt"
+  }
 }

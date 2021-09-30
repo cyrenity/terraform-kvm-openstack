@@ -7,8 +7,8 @@
 
     - name: Downlad terraform binary
       get_url:
-        url: https://releases.hashicorp.com/terraform/1.0.7/terraform_1.0.7_linux_386.zip
-        dest: /tmp/terraform_1.0.7_linux_386.zip
+        url: https://releases.hashicorp.com/terraform/1.0.8/terraform_1.0.8_linux_amd64.zip
+        dest: /tmp/terraform_1.0.8_linux_amd64.zip
         mode: 0755
       register: terraform_zip_file
 
@@ -22,3 +22,39 @@
       - "{{ terraform_zip_file.dest }}"
 
     - debug: var=terraform_zip_file
+  
+    - name: Init Terraform
+      shell: |
+        cd {{ playbook_dir }};
+        terraform init    
+      register: init
+
+    - name: "Display output: Init Terraform"
+      debug:
+        msg: "{{ init.stdout_lines }}"
+
+    - name: Create resources - Plan
+      shell: |
+        cd {{ playbook_dir }};
+        terraform workspace new tempworkspace
+        terraform workspace select tempworkspace
+        terraform plan -out=plan.tfplan;    
+      register: create_plan
+
+    - name: "Display output: Create resources - Plan"
+      debug:
+        msg: "{{ create_plan.stdout_lines }}"
+        msg: "{{ create_plan.stderr_lines }}"
+
+    - name: Create resources
+      shell: |
+        cd {{ playbook_dir }};
+        terraform workspace select tempworkspace
+        terraform apply plan.tfplan    
+      when: (operation == "create")
+      register: create
+
+    - name: "Display output: Create resources"
+      debug:
+        msg: "{{ create.stdout }}"
+      when: (operation == "create")
