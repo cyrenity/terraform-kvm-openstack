@@ -8,4 +8,10 @@ ansible-playbook playbook.yml --ask-become-pass
 ```
 
 
+### Cleanup
+```bash
+ansible-playbook cleanup-playbook.yml --ask-become-pass
+
+```
+
 WORK IN PROGRESS

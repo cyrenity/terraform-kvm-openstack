@@ -16,7 +16,7 @@
 hostname: ${host_name}
 manage_etc_hosts: true
 users:
-  - name: mustafa
+  - name: ${default_user}
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
     ssh_authorized_keys:

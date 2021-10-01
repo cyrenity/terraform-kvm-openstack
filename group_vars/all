@@ -1,0 +1,3 @@
+---
+faucet_controler_base: "/tmp/faucet"
+switch_name: "dp1"

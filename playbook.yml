@@ -1,9 +1,56 @@
 ---
-  - name: Playing with Ansible and Git
+  - name: Installing OpenStack Cloud
     hosts: localhost
     connection: local 
     tasks:
 
+    - name: Setup directory structure for Faucet
+      file:
+        path: "{{ faucet_controler_base }}/{{ item }}"
+        state: directory
+      with_items: 
+        - config
+        - logs
+
+
+    - name: Create Faucet controll config from template
+      template:
+        src: faucet.yaml.j2
+        dest: "{{ faucet_controler_base }}/config/faucet.yaml"
+        
+    - name: Create a data container for faucet
+      docker_container:
+        name: faucet_data
+        image: busybox
+        state: started
+        recreate: yes
+        volumes:
+          - "{{ faucet_controler_base }}/config:/etc/faucet"
+          - "{{ faucet_controler_base }}/logs:/var/log/faucet"
+
+    - name: Setup Faucet controller (inside docker container)
+      docker_container:
+        name: faucet
+        image: faucet/faucet
+        state: started
+        recreate: yes
+        exposed_ports:
+          - 6653:6653
+          - 9302:9302
+        volumes_from:
+          - faucet_data
+             
+
+    - name: Setup openvswitch data 
+      become: true
+      ansible.builtin.shell: |
+        ovs-vsctl add-br {{ switch_name }} \
+          -- set bridge {{ switch_name }} other-config:datapath-id=0000000000000001 \
+          -- set-controller {{ switch_name }} tcp:127.0.0.1:6653 \
+          -- set controller {{ switch_name }} connection-mode=out-of-band
+         
+        exit 0
+         
 
     - name: Downlad terraform binary
       get_url:
@@ -38,7 +85,7 @@
         cd {{ playbook_dir }};
         terraform workspace new tempworkspace
         terraform workspace select tempworkspace
-        terraform plan -out=plan.tfplan;    
+        terraform plan -out=plan.tfplan -var 'ovs-datapath={{ switch_name }}';    
       register: create_plan
 
     - name: "Display output: Create resources - Plan"
@@ -51,10 +98,9 @@
         cd {{ playbook_dir }};
         terraform workspace select tempworkspace
         terraform apply plan.tfplan    
-      when: (operation == "create")
       register: create
 
     - name: "Display output: Create resources"
       debug:
-        msg: "{{ create.stdout }}"
-      when: (operation == "create")
+        msg: "{{ create.stdout_lines }}"        
+        msg: "{{ create.stderr_lines }}"

@@ -24,7 +24,7 @@ resource "libvirt_pool" "ubuntu" {
 resource "libvirt_network" "os-internal" {
   name      = "os-mgmt"
   mode      = "bridge"
-  bridge    = "sw0"
+  bridge    = "${var.ovs-datapath}"
   xml {
     xslt = "${data.template_file.network_xml_override.rendered}"
   }
@@ -32,10 +32,6 @@ resource "libvirt_network" "os-internal" {
 
 data "template_file" "network_xml_override" {
   template = "${file("${path.module}/templates/ovs-network.xsl")}"
-
-  vars = {
-      bridge_name = "sw0"
-  }
 }
 
 resource "libvirt_network" "os-external" {
@@ -72,6 +68,7 @@ resource "libvirt_cloudinit_disk" "commoninit" {
   user_data = templatefile("${path.module}/templates/user_data.tpl", {
       host_name = var.hosts[count.index].hostname
       auth_key  = file("${path.module}/ssh/id_rsa.pub")
+      default_user = var.default_user
   })
   network_config =   templatefile("${path.module}/templates/network_config.tpl", {
      interfaces = var.hosts[count.index].interfaces

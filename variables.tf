@@ -52,3 +52,12 @@ variable "distros" {
   type = list
   default = ["focal-server-cloudimg-amd64"]
 }
+
+variable "default_user" {
+  type = string
+  default = "mustafa"
+}
+variable "ovs-datapath" {
+  type = string
+  default = "dp0"
+}
