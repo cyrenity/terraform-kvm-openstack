@@ -3,6 +3,24 @@ faucet_controler_base: "/tmp/faucet"
 switch_name: "dp1"
 default_user: "mustafa"
 
+faucet:
+  vlans:
+      os_mgmt:
+          vid: 100
+          description: "Management network"
+          faucet_mac: "0e:00:00:00:00:01"
+          faucet_vips: ['192.168.0.0/24'] 
+      os_provider:
+          vid: 200
+          description: "Provider network"
+          faucet_mac: "0e:00:00:00:00:02"
+          faucet_vips: ['10.0.0.0/24']
+      os_tenant:
+          vid: 300
+          description: "Tenant network"
+          faucet_mac: "0e:00:00:00:00:03"
+          faucet_vips: ['172.16.0.0/24']
+
 stack_inventory: [
     {
       hostname: "control01",
@@ -11,7 +29,7 @@ stack_inventory: [
       interfaces: ["eth0", "eth1"],
       ips: ["192.168.0.10", ""],
       macs: ["52:54:00:50:99:c5", "52:54:00:50:99:c6"],
-      vlans: ["200", "300"],
+      vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
       vlan_ips: ["10.0.0.10", "172.16.0.10"],
       switch_port: 1
     },
@@ -22,7 +40,7 @@ stack_inventory: [
       interfaces: ["eth0", "eth1"],
       ips: ["10.10.0.11", ""],
       macs: ["52:54:00:50:99:d5", "52:54:00:50:99:d6"],
-      vlans: ["200", "300"],
+      vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
       vlan_ips: ["10.0.0.11", "172.16.0.11"],
       switch_port: 2
 
@@ -34,7 +52,7 @@ stack_inventory: [
       interfaces: ["eth0", "eth1"],
       ips: ["10.10.0.12", ""],
       macs: ["52:54:00:50:99:e5", "52:54:00:50:99:e6"],
-      vlans: ["200", "300"],
+      vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
       vlan_ips: ["10.0.0.12", "172.16.0.12"],
       switch_port: 3
     }

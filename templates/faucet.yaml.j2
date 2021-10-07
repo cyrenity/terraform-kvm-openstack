@@ -6,41 +6,12 @@ dps:
         stack:
             priority: 1
         interfaces:
-            1:
-                name: "port-1"
-                native_vlan: os-mgmt
-                tagged_vlans: [os-tenant,os-provider]
-            2:
-                name: "port-2"
-                native_vlan: os-mgmt
-                tagged_vlans: [os-tenant,os-provider]
-            3:
-                name: "port-3"
-                native_vlan: os-mgmt
-                tagged_vlans: [os-tenant,os-provider]
-            4:
-                name: "port-4"
-                native_vlan: os-mgmt
-                tagged_vlans: [os-tenant,os-provider]
-            5:
-                name: "port-5"
-                native_vlan: os-mgmt
-                tagged_vlans: [os-tenant,os-provider]
-            
-            
-vlans:
-    os-mgmt:
-        vid: 100
-        description: "Management network"
-        faucet_mac: "0e:00:00:00:00:01"
-        faucet_vips: ['192.168.0.0/24'] 
-    os-provider:
-        vid: 200
-        description: "Provider network"
-        faucet_mac: "0e:00:00:00:00:02"
-        faucet_vips: ['10.0.0.0/24']
-    os-tenant:
-        vid: 300
-        description: "Tenant network"
-        faucet_mac: "0e:00:00:00:00:03"
-        faucet_vips: ['172.16.0.0/24']
+{% for host in stack_inventory %}
+            {{ loop.index }}:
+                name: "port-{{ loop.index }}"
+                native_vlan: os_mgmt
+                tagged_vlans: [os_tenant,os_provider]
+{% endfor %}
+
+
+{{ faucet | to_nice_yaml( line_break=1, indent=4) }}
