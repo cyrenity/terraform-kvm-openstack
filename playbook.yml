@@ -15,7 +15,7 @@
       template:
         src: faucet.yaml.j2
         dest: "{{ faucet_controler_base }}/config/faucet.yaml"
-        
+
     - name: Create a data container for faucet
       docker_container:
         name: faucet_data
@@ -37,7 +37,6 @@
           - 9302:9302
         volumes_from:
           - faucet_data
-             
 
     - name: Setup openvswitch data 
       become: true

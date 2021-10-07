@@ -9,9 +9,8 @@ dps:
 {% for host in stack_inventory %}
             {{ loop.index }}:
                 name: "port-{{ loop.index }}"
-                native_vlan: os_mgmt
-                tagged_vlans: [os_tenant,os_provider]
+                native_vlan: {{ port_vlan_mapping.native_vlan }}
+                tagged_vlans: {{ port_vlan_mapping.tagged_vlans | to_yaml }}
 {% endfor %}
-
 
 {{ faucet | to_nice_yaml( line_break=1, indent=4) }}

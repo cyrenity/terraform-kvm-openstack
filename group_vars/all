@@ -20,6 +20,11 @@ faucet:
           description: "Tenant network"
           faucet_mac: "0e:00:00:00:00:03"
           faucet_vips: ['172.16.0.0/24']
+  
+port_vlan_mapping:
+  native_vlan: os_mgmt
+  tagged_vlans: [os_provider, os_tenant]
+    
 
 stack_inventory: [
     {
