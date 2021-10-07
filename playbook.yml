@@ -3,7 +3,6 @@
     hosts: localhost
     connection: local 
     tasks:
-
     - name: Setup directory structure for Faucet
       file:
         path: "{{ faucet_controler_base }}/{{ item }}"
@@ -11,7 +10,6 @@
       with_items: 
         - config
         - logs
-
 
     - name: Create Faucet controll config from template
       template:
@@ -23,7 +21,7 @@
         name: faucet_data
         image: busybox
         state: started
-        recreate: yes
+        recreate: yes 
         volumes:
           - "{{ faucet_controler_base }}/config:/etc/faucet"
           - "{{ faucet_controler_base }}/logs:/var/log/faucet"
@@ -51,13 +49,18 @@
          
         exit 0
          
-
     - name: Downlad terraform binary
       get_url:
         url: https://releases.hashicorp.com/terraform/1.0.8/terraform_1.0.8_linux_amd64.zip
         dest: /tmp/terraform_1.0.8_linux_amd64.zip
         mode: 0755
       register: terraform_zip_file
+
+    - name: Create Terraform variables.tf file from template
+      template:
+        src: variables.tf.j2
+        dest: "{{ playbook_dir }}/variables.tf"
+        
 
     - name: Install terraform binary
       become: yes
