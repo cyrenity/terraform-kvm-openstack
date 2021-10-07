@@ -1,20 +1,28 @@
 # terraform-kvm-openstack
-Installing Openstack on KVM infrastructure using Terraform 
+[THIS IS WORK IN PROGRESS]
 
-### Start bootstrap process using ansible playbook
+Installing Openstack on KVM infrastructure using Ansible & Terraform 
 
-* Variables are stored in `group_vars/all` file
-* Terraform related variables are inside `variable.tf` file
-  
+This ansible playbook will setup following 
+  * Faucet - Openflow controller
+  * OVS bridge for the infrastructure
+  * Setup KVM instances using Terraform 
+  * Deploy OpenStack Services using Kolla-Ansible (NOT YET DONE)
+
+Variables are stored in `group_vars/all` file
+
+
+### Start bootstrap process 
+To initilize the process, issue:
 
 ```bash
 ansible-playbook playbook.yml --ask-become-pass
 ```
 
 
-### Cleanup
+### Cleanup 
+To clean-up, issue:
 ```bash
 ansible-playbook cleanup-playbook.yml --ask-become-pass
 ```
 
-WORK IN PROGRESS
