@@ -17,7 +17,7 @@ provider "libvirt" {
 resource "libvirt_pool" "ubuntu" {
   name = "ubuntu"
   type = "dir"
-  path = "${path.module}/volumes"
+  path = abspath("${path.module}/volumes")
 }
 
 
@@ -51,14 +51,23 @@ resource "libvirt_volume" "cinder-qcow2" {
 }
 
 
-resource "libvirt_volume" "distro-qcow2" {
+resource "libvirt_volume" "vm-qcow2" {
   count  = "${length(var.hosts)}"
-  name   = "${var.hosts[count.index].hostname}.qcow2"
+  name   = "${var.hosts[count.index].hostname}-primary.qcow2"
   pool   = libvirt_pool.ubuntu.name
-  source = "${path.module}/sources/${var.distros[0]}.qcow2"
+  source = "${path.module}/sources/${var.hosts[count.index].os_image}.img"
+  # source = var.hosts[count.index].boot_from_cdrom == "true" ? null : "${path.module}/sources/${var.hosts[count.index].os_image}.img"
+  # size   = var.hosts[count.index].boot_from_cdrom == "true" ? 11600000000 : null
   format = "qcow2"
 }
 
+
+resource "libvirt_volume" "pfsense-qcow2" {
+  name   = "pfsense.qcow2"
+  pool   = libvirt_pool.ubuntu.name
+  size   = 11600000000
+  format = "qcow2"
+}
 
 
 resource "libvirt_cloudinit_disk" "commoninit" { 
@@ -80,13 +89,18 @@ resource "libvirt_cloudinit_disk" "commoninit" {
 }
 
 
-resource "libvirt_domain" "domain-distro" {
+resource "libvirt_domain" "vm" {
   count  = "${length(var.hosts)}"
   name   = var.hosts[count.index].hostname
   memory = var.hosts[count.index].memory
   vcpu   = var.hosts[count.index].vcpu
-  cloudinit = element(libvirt_cloudinit_disk.commoninit.*.id, count.index)
+
+  cloudinit = var.hosts[count.index].boot_from_cdrom == "false" ? element(libvirt_cloudinit_disk.commoninit.*.id, count.index) : null
   
+  boot_device {
+    dev = [ "cdrom", "hd"]
+  }
+
   network_interface {
       network_id   = libvirt_network.os-internal.id
       mac          = var.hosts[count.index].macs[0]
@@ -107,7 +121,7 @@ resource "libvirt_domain" "domain-distro" {
       target_type = "virtio"
   }
   disk {
-      volume_id = element(libvirt_volume.distro-qcow2.*.id, count.index)
+      volume_id = element(libvirt_volume.vm-qcow2.*.id, count.index)
   }
 
   dynamic "disk" {
@@ -116,6 +130,15 @@ resource "libvirt_domain" "domain-distro" {
     volume_id = element(libvirt_volume.cinder-qcow2.*.id, count.index)
     }
   }
+
+  dynamic "disk" {
+    for_each = var.hosts[count.index].hostname == "firewall01" ? toset([1]) : toset([])
+    content {
+    # file = abspath("${path.module}/sources/${var.hosts[count.index].os_image}.iso")
+    volume_id = libvirt_volume.pfsense-qcow2.id
+    }
+  }
+
 
 
 }
@@ -126,7 +149,7 @@ resource "null_resource" "network_switch_config" {
   provisioner "local-exec" {
     command = "echo \"# $HOSTNAME \n$LOOKUP_CMD \n$OFPORT_CMD\" >> /tmp/switch_port_configurations.txt"
       environment = {
-        LOOKUP_CMD = "IFACE=`ovs-vsctl --columns=name,external-ids -f csv list Interface | grep ${libvirt_domain.domain-distro[count.index ].id} | cut -d\",\" -f1`"
+        LOOKUP_CMD = "IFACE=`ovs-vsctl --columns=name,external-ids -f csv list Interface | grep ${libvirt_domain.vm[count.index ].id} | cut -d\",\" -f1`"
         OFPORT_CMD = "ovs-vsctl -- set Interface $IFACE ofport_request=${var.hosts[count.index].switch_port}"
         HOSTNAME = "${var.hosts[count.index].hostname}"
     }

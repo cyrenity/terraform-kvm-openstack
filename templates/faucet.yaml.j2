@@ -1,3 +1,17 @@
+acls:
+    tenant-vlan-protect:
+        # Prevent IPv4 communication betwen Office/Guest networks
+        - rule:
+              dl_type: 0x800      # ipv4
+              ipv4_src: 10.0.100.0/24
+              ipv4_dst: 10.0.200.0/24
+              actions:
+                  allow: 0        # drop
+        - rule:
+              actions:
+                  allow: 1        # allow
+
+
 dps:
     {{ switch_name }}:
         dp_id: 0x1

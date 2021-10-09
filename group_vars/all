@@ -1,4 +1,7 @@
 ---
+ubuntu_cloud_image: "http://localhost:8000/focal-server-cloudimg-amd64.img"
+pfsense_image: "http://localhost:8000/pfSense-CE-memstick-serial-2.5.2-RELEASE-amd64.img.gz"
+
 faucet_controler_base: "/tmp/faucet"
 switch_name: "dp1"
 default_user: "mustafa"
@@ -9,7 +12,7 @@ faucet:
           vid: 100
           description: "Management network"
           faucet_mac: "0e:00:00:00:00:01"
-          faucet_vips: ['192.168.0.0/24'] 
+          faucet_vips: ['10.10.0.0/24'] 
       os_provider:
           vid: 200
           description: "Provider network"
@@ -28,37 +31,42 @@ port_vlan_mapping:
 
 stack_inventory: [
     {
-      hostname: "control01",
+      hostname: "firewall01",
       memory: 4096,
       vcpu: 2,
       interfaces: ["eth0", "eth1"],
-      ips: ["192.168.0.10", ""],
-      macs: ["52:54:00:50:99:c5", "52:54:00:50:99:c6"],
+      ips: ["10.10.0.1", ""],
+      macs: ["52:54:00:50:99:a1", "52:54:00:50:99:a2"],
       vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
-      vlan_ips: ["10.0.0.10", "172.16.0.10"],
-      switch_port: 1
+      vlan_ips: ["10.0.0.1", "172.16.0.1"],
+      switch_port: 1,
+      os_image: "pfSense-amd64",
+      boot_from_cdrom: "false"
     },
     {
-      hostname: "compute01",
+      hostname: "client01",
       memory: 4096,
-      vcpu: 2,
+      vcpu: 1,
       interfaces: ["eth0", "eth1"],
       ips: ["10.10.0.11", ""],
-      macs: ["52:54:00:50:99:d5", "52:54:00:50:99:d6"],
+      macs: ["52:54:00:50:99:b1", "52:54:00:50:99:b2"],
       vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
       vlan_ips: ["10.0.0.11", "172.16.0.11"],
-      switch_port: 2
-
+      switch_port: 3,
+      os_image: "focal-server-cloudimg-amd64",
+      boot_from_cdrom: "false"
     },
     {
-      hostname: "network01",
+      hostname: "client02",
       memory: 4096,
       vcpu: 1,
       interfaces: ["eth0", "eth1"],
       ips: ["10.10.0.12", ""],
-      macs: ["52:54:00:50:99:e5", "52:54:00:50:99:e6"],
+      macs: ["52:54:00:50:99:c1", "52:54:00:50:99:c2"],
       vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
       vlan_ips: ["10.0.0.12", "172.16.0.12"],
-      switch_port: 3
+      switch_port: 3,
+      os_image: "focal-server-cloudimg-amd64",
+      boot_from_cdrom: "false"
     }
   ]

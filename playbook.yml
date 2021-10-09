@@ -32,11 +32,17 @@
         image: faucet/faucet
         state: started
         recreate: yes
-        exposed_ports:
+        published_ports:
           - 6653:6653
           - 9302:9302
         volumes_from:
           - faucet_data
+
+    - name: Make sure openvswitch is installed
+      apt:
+        name: openvswitch-switch
+        state: present
+      become: true
 
     - name: Setup openvswitch data 
       become: true
@@ -46,6 +52,29 @@
           -- set-controller {{ switch_name }} tcp:127.0.0.1:6653 \
           -- set controller {{ switch_name }} connection-mode=out-of-band
          
+        exit 0
+
+         
+    - name: Downlad Ubuntu cloud image
+      get_url:
+        url: "{{ ubuntu_cloud_image }}"
+        dest: "{{ playbook_dir }}/sources/focal-server-cloudimg-amd64.img"
+        mode: 0755
+      register: ubuntu_archive_file
+
+    
+    - name: Downlad pfSense image
+      get_url:
+        url: "{{ pfsense_image }}"
+        dest: "/tmp/pfSense-amd64.img.gz"
+        mode: 0755
+      register: pfsense_archive_file
+
+    - name: Uncompress the pfSense image
+      shell: |
+        gunzip -k {{ pfsense_archive_file.dest }}
+        qemu-img convert -f raw -O qcow2 {{ pfsense_archive_file.dest[:-3] }} {{ playbook_dir }}/sources/{{ pfsense_archive_file.dest[:-3] | basename }}
+        
         exit 0
          
     - name: Downlad terraform binary
@@ -92,7 +121,6 @@
 
     - name: "Display output: Create resources - Plan"
       debug:
-        msg: "{{ create_plan.stdout_lines }}"
         msg: "{{ create_plan.stderr_lines }}"
 
     - name: Create resources
@@ -104,5 +132,4 @@
 
     - name: "Display output: Create resources"
       debug:
-        msg: "{{ create.stdout_lines }}"        
         msg: "{{ create.stderr_lines }}"
