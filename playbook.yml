@@ -27,8 +27,8 @@
         volumes:
           - "{{ faucet_controler_base }}/config:/etc/faucet"
           - "{{ faucet_controler_base }}/logs:/var/log/faucet"
-        tags:
-        - pre-reqs
+      tags:
+      - pre-reqs
 
     - name: Setup Faucet controller (inside docker container)
       docker_container:
@@ -40,7 +40,7 @@
           - 6653:6653
           - 9302:9302
         volumes_from:
-          - faucet_data
+          - faucet_data 
       tags:
         - pre-reqs
 
@@ -261,3 +261,19 @@
     - debug: var=firewall_lifecycle
       tags:
       - post-deployment
+
+    - name: Fix ovn-faucet-kvm port mappings  
+      become: true
+      shell: |
+        bash /tmp/switch_port_configurations.txt
+
+        exit 0
+      register: bash_output
+      tags:
+        - post-deployment
+        - fix_port_mapping
+
+    - debug: var=bash_output
+      tags:
+        - post-deployment
+        - fix_port_mapping
