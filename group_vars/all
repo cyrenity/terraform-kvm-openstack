@@ -1,10 +1,13 @@
 ---
-ubuntu_cloud_image: "http://localhost:8000/focal-server-cloudimg-amd64.img"
+#ubuntu_cloud_image: "http://localhost:8000/focal-server-cloudimg-amd64.img"
 pfsense_image: "http://localhost:8000/pfSense-CE-memstick-serial-2.5.2-RELEASE-amd64.img.gz"
+ubuntu_cloud_image: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+#pfsense_image: "https://sgpfiles.netgate.com/mirror/downloads/pfSense-CE-memstick-serial-2.5.2-RELEASE-amd64.img.gz"
 
 faucet_controler_base: "/tmp/faucet"
 switch_name: "dp1"
 default_user: "mustafa"
+firewall_host: "firewall01"
 
 faucet:
   vlans:

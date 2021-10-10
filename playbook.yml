@@ -10,6 +10,8 @@
       with_items: 
         - config
         - logs
+      tags:
+        - pre-reqs
 
     - name: Create Faucet controll config from template
       template:
@@ -25,6 +27,8 @@
         volumes:
           - "{{ faucet_controler_base }}/config:/etc/faucet"
           - "{{ faucet_controler_base }}/logs:/var/log/faucet"
+        tags:
+        - pre-reqs
 
     - name: Setup Faucet controller (inside docker container)
       docker_container:
@@ -37,12 +41,16 @@
           - 9302:9302
         volumes_from:
           - faucet_data
+      tags:
+        - pre-reqs
 
     - name: Make sure openvswitch is installed
       apt:
         name: openvswitch-switch
         state: present
       become: true
+      tags:
+        - pre-reqs
 
     - name: Setup openvswitch data 
       become: true
@@ -53,7 +61,8 @@
           -- set controller {{ switch_name }} connection-mode=out-of-band
          
         exit 0
-
+      tags:
+        - pre-reqs
          
     - name: Downlad Ubuntu cloud image
       get_url:
@@ -61,7 +70,8 @@
         dest: "{{ playbook_dir }}/sources/focal-server-cloudimg-amd64.img"
         mode: 0755
       register: ubuntu_archive_file
-
+      tags:
+        - pre-reqs
     
     - name: Downlad pfSense image
       get_url:
@@ -69,92 +79,33 @@
         dest: "/tmp/pfSense-amd64.img.gz"
         mode: 0755
       register: pfsense_archive_file
+      tags:
+        - pre-reqs
 
-    - name: Uncompress the pfSense image
+    - name: Uncompress and Convert (to qcow2) the pfSense image
       shell: |
         gunzip -k {{ pfsense_archive_file.dest }}
         qemu-img convert -f raw -O qcow2 {{ pfsense_archive_file.dest[:-3] }} {{ playbook_dir }}/sources/{{ pfsense_archive_file.dest[:-3] | basename }}
 
         exit 0
-         
-    - name: Downlad terraform binary
-      get_url:
-        url: https://releases.hashicorp.com/terraform/1.0.8/terraform_1.0.8_linux_amd64.zip
-        dest: /tmp/terraform_1.0.8_linux_amd64.zip
-        mode: 0755
-      register: terraform_zip_file
-
-    - name: Create Terraform variables.tf file from template
-      template:
-        src: variables.tf.j2
-        dest: "{{ playbook_dir }}/variables.tf"
-        
-
-    - name: Install terraform binary
-      become: yes
-      unarchive:
-        src: "{{ item }}"
-        dest: /usr/local/bin/
-        copy: no
-      with_items:
-      - "{{ terraform_zip_file.dest }}"
-
-    - debug: var=terraform_zip_file
-  
-    - name: Init Terraform
-      shell: |
-        cd {{ playbook_dir }};
-        terraform init    
-      register: init
-
-    - name: "Display output: Init Terraform"
-      debug:
-        msg: "{{ init.stdout_lines }}"
-
-    - name: Create resources - Plan
-      shell: |
-        cd {{ playbook_dir }};
-        terraform workspace new tempworkspace
-        terraform workspace select tempworkspace
-        terraform plan -out=plan.tfplan -var 'ovs-datapath={{ switch_name }}';    
-      register: create_plan
-
-    - name: "Display output: Create resources - Plan"
-      debug:
-        msg: "{{ create_plan.stderr_lines }}"
-
-    - name: Create resources
-      shell: |
-        cd {{ playbook_dir }};
-        terraform workspace select tempworkspace
-        terraform apply plan.tfplan    
-      register: create
-
-    - name: "Display output: Create resources"
-      debug:
-        msg: "{{ create.stderr_lines }}"
-
-    - name: "Shutdown firewall"
-      shell: |
-        virsh destroy firewall01
-
-        exit 0
       tags:
-        - temp
+        - pre-reqs
+
+
 
     - name: "Create config.xml for pfSense"
       template:
         src: config.xml.j2
         dest: "/tmp/config.xml"
       tags:
-        - temp
+        - pre-reqs
 
 
     - name: "Copy config.xml to disk image"
       become: true
       shell: |
         modprobe nbd 
-        qemu-nbd --connect /dev/nbd0 {{ playbook_dir }}/volumes/firewall01-primary.qcow2
+        qemu-nbd --connect /dev/nbd0 {{ playbook_dir }}/sources/{{ pfsense_archive_file.dest[:-3] | basename }}
         fdisk -l /dev/nbd0 
         mkdir /tmp/mnt
         mount /dev/nbd0p3 /tmp/mnt/
@@ -168,61 +119,145 @@
         exit 0
       register: in_memory_disk
       tags:
-        - temp
+        - pre-reqs
 
     - name: "Display output: NBD disk modifier "
       debug:
         msg: "{{ in_memory_disk.stdout_lines }}"
-
-
-    - name: "Start firewall"
-      shell: |
-        virsh start firewall01
-
-        exit 0
       tags:
-        - temp
+        - pre-reqs
+
+
+    - name: Downlad terraform binary
+      get_url:
+        url: https://releases.hashicorp.com/terraform/1.0.8/terraform_1.0.8_linux_amd64.zip
+        dest: /tmp/terraform_1.0.8_linux_amd64.zip
+        mode: 0755
+      register: terraform_zip_file
+      tags:
+        - pre-reqs
+
+    - name: Create Terraform variables.tf file from template
+      template:
+        src: variables.tf.j2
+        dest: "{{ playbook_dir }}/variables.tf"
+      tags:
+        - pre-reqs
+
+    - name: Install terraform binary
+      become: yes
+      unarchive:
+        src: "{{ item }}"
+        dest: /tmp/
+        copy: no
+      with_items:
+      - "{{ terraform_zip_file.dest }}"
+      tags:
+        - pre-reqs
+
+    - debug: var=terraform_zip_file
+  
+    - name: Init Terraform
+      shell: |
+        cd {{ playbook_dir }};
+        /tmp/terraform init    
+      register: init
+      tags:
+        - pre-reqs
+
+        
+    - name: "Display output: Init Terraform"
+      debug:
+        msg: "{{ init.stdout_lines }}"
+      tags:
+        - pre-reqs
+
+
+    - name: Create resources - Plan
+      shell: |
+        cd {{ playbook_dir }};
+        /tmp/terraform workspace new tempworkspace
+        /tmp/terraform workspace select tempworkspace
+        /tmp/terraform plan -out=plan.tfplan -var 'ovs-datapath={{ switch_name }}';    
+      register: create_plan
+      tags:
+        - deployment
+
+    - name: "Display output: Create resources - Plan"
+      debug:
+        msg: "{{ create_plan.stderr_lines }}"
+      tags:
+        - deployment
+
+    - name: Create resources
+      shell: |
+        cd {{ playbook_dir }};
+        /tmp/terraform workspace select tempworkspace
+        /tmp/terraform apply plan.tfplan    
+      register: create
+      tags:
+        - deployment
+
+    - name: "Display output: Create resources"
+      debug:
+        msg: "{{ create.stderr_lines }}"
+      tags:
+        - deployment
 
     - name: "Create venv for pfSense install script"
       shell: |
         python -m venv /tmp/venv
 
         exit 0
+      tags:
+        - post-deployment
+
 
     - name: Install pySerial 
       pip:
         name: pyserial
         virtualenv: /tmp/venv
+      tags:
+        - post-deployment
 
-    - name: Lets take a nap
+    - name: Lets take a nap [30s]
       shell: |
         sleep 30
+      tags:
+        - post-deployment
 
     - name: Run pfSense installer
       become: true
       shell: |
         sleep 20
-        CONSOLE=`virsh ttyconsole firewall01`
+        CONSOLE=`virsh ttyconsole {{ firewall_host }}`
         source /tmp/venv/bin/activate
-        python {{ playbook_dir }}/pfsense.py $CONSOLE
+        python {{ playbook_dir }}/scripts/pfsense.py $CONSOLE
         deactivate
 
         exit 0
       register: pfsense_installer
-
+      tags:
+        - post-deployment
 
     - name: "Display output: pfSense Installer"
       debug:
         msg: "{{ pfsense_installer.stdout_lines }}"
+      tags:
+        - post-deployment
 
     - name: "Second power-off for pfSense"
       become: true
       shell: |
-        virsh detach-disk --domain firewall01 --target vda --persistent --config --live
-        virsh destroy firewall01
-        virsh start firewall01
+        virsh detach-disk --domain {{ firewall_host }} --target vda --persistent --config --live
+        virsh destroy {{ firewall_host }}
+        virsh start {{ firewall_host }}
 
         exit 0
       register: firewall_lifecycle
+      tags:
+        - post-deployment
 
     - debug: var=firewall_lifecycle
+      tags:
+      - post-deployment
