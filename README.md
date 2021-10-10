@@ -1,7 +1,7 @@
 # terraform-kvm-openstack
 [THIS IS WORK IN PROGRESS]
 
-Installing Openstack on KVM infrastructure using Ansible & Terraform 
+A POC for Deploying Openstack on KVM infrastructure using Ansible, Terraform and clever BASH scripts  
 
 This ansible playbook will setup following 
   * Faucet - Openflow controller
