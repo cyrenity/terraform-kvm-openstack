@@ -74,7 +74,7 @@
       shell: |
         gunzip -k {{ pfsense_archive_file.dest }}
         qemu-img convert -f raw -O qcow2 {{ pfsense_archive_file.dest[:-3] }} {{ playbook_dir }}/sources/{{ pfsense_archive_file.dest[:-3] | basename }}
-        
+
         exit 0
          
     - name: Downlad terraform binary
@@ -133,3 +133,96 @@
     - name: "Display output: Create resources"
       debug:
         msg: "{{ create.stderr_lines }}"
+
+    - name: "Shutdown firewall"
+      shell: |
+        virsh destroy firewall01
+
+        exit 0
+      tags:
+        - temp
+
+    - name: "Create config.xml for pfSense"
+      template:
+        src: config.xml.j2
+        dest: "/tmp/config.xml"
+      tags:
+        - temp
+
+
+    - name: "Copy config.xml to disk image"
+      become: true
+      shell: |
+        modprobe nbd 
+        qemu-nbd --connect /dev/nbd0 {{ playbook_dir }}/volumes/firewall01-primary.qcow2
+        fdisk -l /dev/nbd0 
+        mkdir /tmp/mnt
+        mount /dev/nbd0p3 /tmp/mnt/
+        rm -r /tmp/mnt/conf
+        mkdir /tmp/mnt/conf
+        cp /tmp/config.xml /tmp/mnt/conf/config.xml
+        ls -lh /tmp/mnt/conf
+        umount /tmp/mnt 
+        qemu-nbd --disconnect /dev/nbd0
+
+        exit 0
+      register: in_memory_disk
+      tags:
+        - temp
+
+    - name: "Display output: NBD disk modifier "
+      debug:
+        msg: "{{ in_memory_disk.stdout_lines }}"
+
+
+    - name: "Start firewall"
+      shell: |
+        virsh start firewall01
+
+        exit 0
+      tags:
+        - temp
+
+    - name: "Create venv for pfSense install script"
+      shell: |
+        python -m venv /tmp/venv
+
+        exit 0
+
+    - name: Install pySerial 
+      pip:
+        name: pyserial
+        virtualenv: /tmp/venv
+
+    - name: Lets take a nap
+      shell: |
+        sleep 30
+
+    - name: Run pfSense installer
+      become: true
+      shell: |
+        sleep 20
+        CONSOLE=`virsh ttyconsole firewall01`
+        source /tmp/venv/bin/activate
+        python {{ playbook_dir }}/pfsense.py $CONSOLE
+        deactivate
+
+        exit 0
+      register: pfsense_installer
+
+
+    - name: "Display output: pfSense Installer"
+      debug:
+        msg: "{{ pfsense_installer.stdout_lines }}"
+
+    - name: "Second power-off for pfSense"
+      become: true
+      shell: |
+        virsh detach-disk --domain firewall01 --target vda --persistent --config --live
+        virsh destroy firewall01
+        virsh start firewall01
+
+        exit 0
+      register: firewall_lifecycle
+
+    - debug: var=firewall_lifecycle

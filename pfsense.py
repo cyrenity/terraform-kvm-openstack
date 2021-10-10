@@ -2,6 +2,10 @@ import serial
 import code
 import time
 
+import sys
+
+console = sys.argv[1]
+
 def sar(s, text, line_limit=1):
     ser.flushInput()
     ser.flushOutput()
@@ -16,7 +20,7 @@ def sar(s, text, line_limit=1):
         if num_of_lines == line_limit:
             break
 
-ser = serial.Serial('/dev/pts/6', timeout=1)  # open serial port
+ser = serial.Serial(console, timeout=1)  # open serial port
 ser.baudrate = 115200
 
 print("1 --------------------------------->")
@@ -54,6 +58,7 @@ sar(ser, b"\r", 2)
 time.sleep(0.5)
 print("12 --------------------------------->")
 sar(ser, b"\r", 5)
+
 
 
 
