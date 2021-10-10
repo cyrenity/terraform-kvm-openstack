@@ -52,7 +52,7 @@ stack_inventory: [
       macs: ["52:54:00:50:99:b1", "52:54:00:50:99:b2"],
       vlans: ["{{ faucet.vlans.os_provider.vid }}", "{{ faucet.vlans.os_tenant.vid }}"],
       vlan_ips: ["10.0.0.11", "172.16.0.11"],
-      switch_port: 3,
+      switch_port: 2,
       os_image: "focal-server-cloudimg-amd64",
       boot_from_cdrom: "false"
     },
